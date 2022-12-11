@@ -1,0 +1,44 @@
+bool: true
+i32: 5
+f32: 4.4
+b: 0b1
+q: 0q1
+o: 0o1
+x: 0x1
+
+a_vec:
+    - "a"
+    - "b"
+    - "c"
+    - "d"
+a_hash_map:  // could also be object, works if values are of one time
+    k0: "v0"
+    k1: "v1"
+    k2: "v2"
+b_vec: // Vec<(String, _)>
+    - "a"
+        sub_key: true
+        sub_2: 0xFF
+    - "b"
+        sub_key: true
+        sub_2: 0xFF
+c_vec: // Vec<_>
+    -
+        sub_key: true
+        sub_2: 0xFF
+    -
+        sub_key: true
+        sub_2: 0xFF
+a_thing:
+    k0:     // doesnt have primary value
+        i: 2
+        j: 3
+        k: 4
+        l: 5
+    k1: "v1" // has primary value
+        m: 1
+        n: 2
+        o: 3
+        p: 4
+    k2: #a_thing // ref to a_thing
+    k3: "a", "tuple", "of", "values"
