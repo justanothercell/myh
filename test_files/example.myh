@@ -5,7 +5,7 @@ b: 0b1
 q: 0q1
 o: 0o1
 x: 0x1
-
+complex_string: "hello\n 🦀, 丠, 両, \u{7f}"
 a_vec:
     - "a"
     - "b"
