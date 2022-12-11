@@ -13,4 +13,4 @@ pub mod parsing;
 
 pub use primitives::Primitive;
 pub use builtins::ranges::AnyRange;
-pub use myh::{Serializable, Myh};
+pub use myh::{Serializable, Myh, MyhType};

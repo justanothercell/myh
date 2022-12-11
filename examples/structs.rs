@@ -4,7 +4,8 @@ use myh::{Myh, Serializable};
 struct Test {
     a_bool: bool,
     b_i32: i32,
-    c_sub: SubStruct
+    c_sub: SubStruct,
+    d_vec: Vec<f32>
 }
 
 impl Serializable for Test {
@@ -13,6 +14,7 @@ impl Serializable for Test {
         myh.set("a_bool", &self.a_bool);
         myh.set("b_i32", &self.b_i32);
         myh.set("c_sub", &self.c_sub);
+        myh.set("d_vec", &self.d_vec);
         myh.myh::<()>(None)
     }
 
@@ -22,6 +24,7 @@ impl Serializable for Test {
             a_bool: myh.get("a_bool")?,
             b_i32: myh.get("b_i32")?,
             c_sub: myh.get("c_sub")?,
+            d_vec: myh.get("d_vec")?,
         })
     }
 }
@@ -60,6 +63,18 @@ fn main() {
             sub_string: "ABCDEF".to_string(),
             sub_tuple: (75, 'c'),
         },
+        d_vec: vec![1f32, 2.7f32, 3.1415f32, 4f32]
     };
     let serialized = data.serialize();
+    println!("{}", serialized.to_string());
+    // a_bool: true
+    // b_i32: 42
+    // c_sub: "Data 1"
+    //     sub_string: "ABCDEF"
+    //     sub_tuple: 75, 'c'
+    // d_vec: 
+    //     - 1
+    //     - 2.7
+    //     - 3.1415
+    //     - 4
 }
