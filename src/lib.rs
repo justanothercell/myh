@@ -1,16 +1,12 @@
-#![feature(generic_const_exprs)]
-#![feature(auto_traits)]
-#![feature(negative_impls)]
 #![feature(if_let_guard)]
 #![feature(let_chains)]
-#![feature(box_patterns)]
-#![feature(trivial_bounds)]
 
 mod primitives;
 mod myh;
 mod builtins;
-pub mod parsing;
+mod parsing;
+pub mod error;
 
-pub use primitives::Primitive;
+pub use primitives::{Primitive, PrimVec};
 pub use builtins::ranges::AnyRange;
-pub use myh::{Serializable, Myh, MyhType};
+pub use myh::{Serializable, Myh};

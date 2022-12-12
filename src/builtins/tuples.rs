@@ -1,4 +1,7 @@
+use crate::error::MyhError;
+use crate::parsing::assert_str;
 use crate::Primitive;
+
 macro_rules! tuple_primitive_impls {
     ( $( $name:ident )+ ) => {
         impl<$($name: Primitive),+> Primitive for ($($name,)+) {
@@ -12,10 +15,10 @@ macro_rules! tuple_primitive_impls {
                 out
             }
 
-            fn from_string(str: &str) -> Option<Self>{
+            fn from_string(str: &str) -> Result<Self, MyhError>{
                 let mut parts = crate::parsing::split_tuple(str);
                 parts.reverse();
-                Some(($(if let Some(part) = parts.pop() { $name::from_string(&part)?} else { None? },)+))
+                Ok(($($name::from_string(&parts.pop().unwrap_or(String::new()))?,)+))
             }
         }
     };
@@ -23,11 +26,12 @@ macro_rules! tuple_primitive_impls {
 
 impl Primitive for (){
     fn stringify(&self) -> String {
-        String::from("()")
+        String::from("")
     }
 
-    fn from_string(_str: &str) -> Option<Self>{
-        Some(())
+    fn from_string(str: &str) -> Result<Self, MyhError>{
+        assert_str(str, "", MyhError::ParsePrimitiveError("()".to_string(), str.to_string()))?;
+        Ok(())
     }
 }
 

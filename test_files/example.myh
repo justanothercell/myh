@@ -1,43 +1,29 @@
-bool: true
-i32: 5
-f32: 4.4
-b: 0b1
-q: 0q1
-o: 0o1
-x: 0x1
-complex_string: "hello\n 🦀, 丠, 両, \u{7f}"
-a_vec:
+
+a_bool: true
+b_i32: 42
+c_sub: "Data \"1"
+    sub_string:      "ABCDEF"
+    sub_tuple: 75, 'c'
+    inline_vec: 'x', 'y', 'z'
+    outline_vec: 
+        - "a good reason to put this on multiple lines"
+        - "yk this is rather long"
+        - "and really really really bothersome to read in one line"
     - "a"
-    - "b"
-    - "c"
-    - "d"
-a_hash_map:  // could also be object, works if values are of one time
-    k0: "v0"
-    k1: "v1"
-    k2: "v2"
-b_vec: // Vec<(String, _)>
-    - "a"
-        sub_key: true
-        sub_2: 0xFF
-    - "b"
-        sub_key: true
-        sub_2: 0xFF
-c_vec: // Vec<_>
-    -
-        sub_key: true
-        sub_2: 0xFF
-    -
-        sub_key: true
-        sub_2: 0xFF
-a_thing:
-    k0:     // doesnt have primary value
-        i: 2
-        j: 3
-        k: 4
-        l: 5
-    k1: "v1" // has primary value
-        m: 1
-        n: 2
-        o: 3
-        p: 4
-    k3: "a", "tuple", "of", "values"
+    - "toplevel"
+    - "string"
+d_vec: 
+    - 1
+    - 2.7
+    - 3.1415927
+    - -4
+e_coords_vec: 
+    - "fedora"
+        x: 0
+        y: 0
+    - "fedora"
+        x: 1
+        y: 2
+    - "elmo"
+        x: 3
+        y: 2

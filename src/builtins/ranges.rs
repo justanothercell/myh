@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter};
-use std::marker::PhantomData;
 use std::ops::{Bound, Range, RangeBounds, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
-use std::str::FromStr;
+use crate::error::MyhError;
+use crate::parsing::assert_str;
 use crate::Primitive;
 
 impl<T: Primitive> Primitive for Range<T> {
@@ -9,9 +9,9 @@ impl<T: Primitive> Primitive for Range<T> {
         format!("{}..{}", self.start.stringify(), self.end.stringify())
     }
 
-    fn from_string(string: &str) -> Option<Self>{
-        let parts = string.split_once("..")?;
-        Some(T::from_string(parts.0)?..T::from_string(parts.1)?)
+    fn from_string(string: &str) -> Result<Self, MyhError>{
+        let parts = string.split_once("..").ok_or(MyhError::ParsePrimitiveError("Range".to_string(), string.to_string()))?;
+        Ok(T::from_string(parts.0)?..T::from_string(parts.1)?)
     }
 }
 
@@ -20,9 +20,10 @@ impl<T: Primitive> Primitive for RangeFrom<T> {
         format!("{}..", self.start.stringify())
     }
 
-    fn from_string(string: &str) -> Option<Self>{
-        let parts = string.split_once("..")?;
-        Some(T::from_string(parts.0)?..)
+    fn from_string(string: &str) -> Result<Self, MyhError>{
+        let parts = string.split_once("..").ok_or(MyhError::ParsePrimitiveError("RangeFrom".to_string(), string.to_string()))?;
+        assert_str(parts.1, "", MyhError::ParsePrimitiveError("RangeFrom".to_string(), string.to_string()))?;
+        Ok(T::from_string(parts.0)?..)
     }
 }
 
@@ -31,8 +32,9 @@ impl Primitive for RangeFull {
         String::from("..")
     }
 
-    fn from_string(_string: &str) -> Option<Self>{
-        Some(RangeFull)
+    fn from_string(string: &str) -> Result<Self, MyhError>{
+        assert_str(string, "", MyhError::ParsePrimitiveError("RangeFull".to_string(), string.to_string()))?;
+        Ok(RangeFull)
     }
 }
 
@@ -41,9 +43,9 @@ impl<T: Primitive> Primitive for RangeInclusive<T> {
         format!("{}..={}", self.start().stringify(), self.end().stringify())
     }
 
-    fn from_string(string: &str) -> Option<Self>{
-        let parts = string.split_once("..=")?;
-        Some(T::from_string(parts.0)?..=T::from_string(parts.1)?)
+    fn from_string(string: &str) -> Result<Self, MyhError>{
+        let parts = string.split_once("..=").ok_or(MyhError::ParsePrimitiveError("RangeInclusive".to_string(), string.to_string()))?;
+        Ok(T::from_string(parts.0)?..=T::from_string(parts.1)?)
     }
 }
 
@@ -52,9 +54,10 @@ impl<T: Primitive> Primitive for RangeTo<T> {
         format!("..{}", self.end.stringify())
     }
 
-    fn from_string(string: &str) -> Option<Self>{
-        let parts = string.split_once("..")?;
-        Some(..T::from_string(parts.0)?)
+    fn from_string(string: &str) -> Result<Self, MyhError>{
+        let parts = string.split_once("..").ok_or(MyhError::ParsePrimitiveError("RangeTo".to_string(), string.to_string()))?;
+        assert_str(parts.0, "", MyhError::ParsePrimitiveError("RangeTo".to_string(), string.to_string()))?;
+        Ok(..T::from_string(parts.1)?)
     }
 }
 
@@ -63,9 +66,10 @@ impl<T: Primitive> Primitive for RangeToInclusive<T> {
         format!("..={}", self.end.stringify())
     }
 
-    fn from_string(string: &str) -> Option<Self>{
-        let parts = string.split_once("..=")?;
-        Some(..=T::from_string(parts.0)?)
+    fn from_string(string: &str) -> Result<Self, MyhError>{
+        let parts = string.split_once("..=").ok_or(MyhError::ParsePrimitiveError("RangeToInclusive".to_string(), string.to_string()))?;
+        assert_str(parts.0, "", MyhError::ParsePrimitiveError("RangeToInclusive".to_string(), string.to_string()))?;
+        Ok(..=T::from_string(parts.1)?)
     }
 }
 
@@ -121,15 +125,15 @@ impl<T: Primitive> Primitive for AnyRange<T>{
         }
     }
 
-    fn from_string(string: &str) -> Option<Self> where Self: Sized{
+    fn from_string(string: &str) -> Result<Self, MyhError> where Self: Sized{
         match 0 {
-            _ if let Some(r) = Range::<T>::from_string(string) => Some(AnyRange::Range(r)),
-            _ if let Some(r) = RangeFrom::<T>::from_string(string) => Some(AnyRange::RangeFrom(r)),
-            _ if let Some(r) = RangeFull::from_string(string) => Some(AnyRange::RangeFull(r)),
-            _ if let Some(r) = RangeInclusive::<T>::from_string(string) => Some(AnyRange::RangeInclusive(r)),
-            _ if let Some(r) = RangeTo::<T>::from_string(string) => Some(AnyRange::RangeTo(r)),
-            _ if let Some(r) = RangeToInclusive::<T>::from_string(string) => Some(AnyRange::RangeToInclusive(r)),
-            _ => None
+            _ if let Ok(r) = Range::<T>::from_string(string) => Ok(AnyRange::Range(r)),
+            _ if let Ok(r) = RangeFrom::<T>::from_string(string) => Ok(AnyRange::RangeFrom(r)),
+            _ if let Ok(r) = RangeFull::from_string(string) => Ok(AnyRange::RangeFull(r)),
+            _ if let Ok(r) = RangeInclusive::<T>::from_string(string) => Ok(AnyRange::RangeInclusive(r)),
+            _ if let Ok(r) = RangeTo::<T>::from_string(string) => Ok(AnyRange::RangeTo(r)),
+            _ if let Ok(r) = RangeToInclusive::<T>::from_string(string) => Ok(AnyRange::RangeToInclusive(r)),
+            _ => Err(MyhError::ParsePrimitiveError("AnyRange".to_string(), string.to_string()))
         }
     }
 }

@@ -1,187 +1,228 @@
 use std::collections::hash_map::Keys;
 use std::collections::HashMap;
-use std::ops::Index;
+use std::fs::File;
+use std::io::{Read, Write};
+use crate::error::MyhError;
+use crate::parsing::{key_index, validate_key};
 use crate::Primitive;
 
 pub trait Serializable {
-    fn serialize(&self) -> Myh;
-    fn deserialize(myh: Myh) -> Option<Self> where Self: Sized;
+    fn serialize(&self) -> Result<Myh, MyhError>;
+    fn deserialize(myh: &Myh) -> Result<Self, MyhError> where Self: Sized;
 }
 
 impl<T: Primitive> Serializable for T {
-    fn serialize(&self) -> Myh {
-        let myh = Myh::new_empty();
-        myh.myh(Some(self))
+    fn serialize(&self) -> Result<Myh, MyhError> {
+        let mut myh = Myh::new();
+        myh.set_item(Some(self));
+        Ok(myh)
     }
 
-    fn deserialize(myh: Myh) -> Option<Self> where Self: Sized {
-        let Myh { item, .. } = myh;
-        item.as_ref().map(|s|T::from_string(s))?
+    fn deserialize(myh: &Myh) -> Result<Self, MyhError> where Self: Sized {
+        myh.get_item()
     }
 }
 
 impl<T: Serializable> Serializable for Vec<T> {
-    fn serialize(&self) -> Myh {
-        let mut myh = Myh::new_list();
+    fn serialize(&self) -> Result<Myh, MyhError> {
+        let mut myh = Myh::new();
         for item in self.iter() {
-            myh.push(item)
+            myh.push(item)?;
         }
-        myh.myh::<()>(None)
+        Ok(myh)
     }
 
-    fn deserialize(myh: Myh) -> Option<Self> where Self: Sized {
-        let (_, mut myh) = myh.list::<()>()?;
+    fn deserialize(myh: &Myh) -> Result<Self, MyhError> where Self: Sized {
         let mut v = vec![];
-        while myh.len() > 0 {
-            v.push(myh.pop()?)
+        for i in 0..myh.len() {
+            v.push(myh.at(i)?)
         }
-        v.reverse();
-        Some(v)
+        Ok(v)
     }
 }
 
 pub struct Myh {
-    item: Option<String>,
-    collection: MyhCollection
+    item: String,
+    order: MyhOrder,
+    list: Vec<Myh>,
+    map: HashMap<String, Myh>,
+    map_order: Vec<String>
 }
 
-pub enum MyhType {
-    Empty,
-    List,
-    Map
+#[derive(PartialEq)]
+enum MyhOrder {
+    None,
+    ListFirst,
+    MapFirst
 }
 
-enum MyhCollection {
-    Empty,
-    List(Vec<Myh>),
-    Map(HashMap<String, Myh>, Vec<String>)
+impl MyhOrder {
+    fn update(&mut self, order: MyhOrder) {
+        if let MyhOrder::None = self {
+            *self = order;
+        }
+    }
 }
 
 impl Myh {
-    pub fn new_empty() -> MyhEmpty{
-        MyhEmpty
-    }
-    pub fn new_list() -> MyhList{
-        MyhList(vec![])
-    }
-    pub fn new_map() -> MyhMap {
-        MyhMap(HashMap::new(), vec![])
-    }
-    pub fn myh_type(&self) -> MyhType {
-        match &self.collection {
-            MyhCollection::Empty => MyhType::Empty,
-            MyhCollection::List(_) => MyhType::List,
-            MyhCollection::Map(_, _) => MyhType::Map
+    pub fn new() -> Self {
+        Self {
+            item: String::new(),
+            order: MyhOrder::None,
+            list: vec![],
+            map: Default::default(),
+            map_order: vec![],
         }
     }
-    pub fn empty<T: Primitive>(self) -> Option<T> {
-        self.item.map(|i|T::from_string(&i))?
-    }
-    pub fn list<T: Primitive>(self) -> Option<(Option<T>, MyhList)>{
-        if let Myh {
+    pub fn extend(&mut self, other: Myh) {
+        let Self {
             item,
-            collection: MyhCollection::List(list)
-        } = self {
-            Some((item.map(|i|T::from_string(&i))?, MyhList(list)))
-        } else { None }
-    }
-    pub fn map<T: Primitive>(self) -> Option<(Option<T>, MyhMap)> {
-        if let Myh {
-            item,
-            collection: MyhCollection::Map(dict, keys)
-        } = self {
-            Some((item.map(|i|T::from_string(&i))?, MyhMap(dict, keys)))
-        } else { None }
+            order,
+            list,
+            map,
+            map_order,
+        } = other;
+        if let MyhOrder::None = self.order {
+            self.order = order;
+        }
+        if !item.is_empty() {
+            if self.has_item() {
+                self.item = format!("{}, {}", self.item, item);
+            } else {
+                self.item = item;
+            }
+        }
+        self.list.extend(list.into_iter());
+        self.map.extend(map.into_iter());
+        self.map_order.extend(map_order.into_iter());
     }
 
+    // == item ==
+    pub fn has_item(&self) -> bool {
+        !self.item.is_empty()
+    }
+    pub fn get_item<T: Primitive>(&self) -> Result<T, MyhError>{
+        T::from_string(&self.item)
+    }
+    pub fn no_title(&self) -> Result<(), MyhError> {
+        let _: () = self.get_item()?;
+        Ok(())
+    }
+    pub fn set_item<T: Primitive>(&mut self, item: Option<&T>) {
+        self.item = item.map(|i|i.stringify()).unwrap_or(String::new())
+    }
+
+    // == list ==
+    pub fn push<T: Serializable>(&mut self, item: &T) -> Result<(), MyhError> {
+        self.order.update(MyhOrder::ListFirst);
+        self.list.push(item.serialize()?);
+        Ok(())
+    }
+    pub fn len(&self) -> usize {
+        self.list.len()
+    }
+    pub fn at<T: Serializable>(&self, index: usize) -> Result<T, MyhError> {
+        if self.list.len() <= index {
+            return Err(MyhError::IndexOutOfBounds(index, self.list.len()))
+        }
+        T::deserialize(self.list.get(index).unwrap())
+    }
+
+    // == map ==
+    pub fn set<T: Serializable>(&mut self, key: &str, item: &T) -> Result<(), MyhError>{
+        validate_key(key)?;
+        self.order.update(MyhOrder::MapFirst);
+        self.map.insert(key.to_string(), item.serialize()?);
+        self.map_order.push(key.to_string());
+        Ok(())
+    }
+    pub fn has_key(&self, key: &str) -> bool{
+        self.map.contains_key(key)
+    }
+    pub fn get<T: Serializable>(&self, key: &str) -> Result<T, MyhError>{
+        self.map.get(key).map(|myh|T::deserialize(myh)).ok_or(MyhError::KeyNotFound(key.to_string()))?
+    }
+    pub fn keys(&self) -> Keys<String, Myh>{
+        self.map.keys()
+    }
+
+    // == conversion ==
+    pub fn deserialize<T: Serializable>(&self) -> Result<T, MyhError>{
+        T::deserialize(self)
+    }
+
+    pub fn load(path: &str) -> Result<Self, MyhError> {
+        let mut f = File::open(path).unwrap();
+        let mut buf = String::new();
+        f.read_to_string(&mut buf).unwrap();
+        Self::from_string(&buf)
+    }
+    pub fn from_string(string: &str) -> Result<Self, MyhError>{
+        let strings = string.split('\n').collect::<Vec<_>>();
+        let strings = strings.into_iter().map(|s|s.trim_end()).collect();
+        Self::from_strings(strings)
+    }
+    fn from_strings(mut strings: Vec<&str>) -> Result<Self, MyhError>{
+        fn collect_item<'a>(strings: &mut Vec<&'a str>) -> Vec<&'a str>{
+            let mut sub = vec![];
+            while let Some(s) = strings.get(0) {
+                if s.starts_with("    ") {
+                    sub.push(s.split_at(4).1);
+                    let _ = strings.remove(0);
+                } else { break }
+            }
+            sub
+        }
+        let mut myh = Self::new();
+        while strings.len() > 0 {
+            let s = strings.remove(0);
+            if s.trim().is_empty() { continue }
+            if s.starts_with("- ") {
+                let mut item = vec![s.split_at(2).1.trim_start()];
+                item.extend(collect_item(&mut strings));
+                myh.list.push(Self::from_strings(item)?);
+                myh.order.update(MyhOrder::ListFirst);
+            } else if let Some(i) = key_index(s) {
+                let (k, it) = s.split_at(i + 1);
+                let k = k.split_at(k.len()-1).0;
+                validate_key(k)?;
+                let mut item = vec![it.trim_start()];
+                item.extend(collect_item(&mut strings));
+                myh.map.insert(k.to_string(), Myh::from_strings(item)?);
+                myh.map_order.push(k.to_string());
+                myh.order.update(MyhOrder::MapFirst);
+            } else if myh.order == MyhOrder::None && !myh.has_item() {
+                myh.item = s.to_string();
+            } else { return Err(MyhError::DeserializationError("invalid input".to_string(), s.to_string())) }
+        }
+        Ok(myh)
+    }
+
+    pub fn save(&self, path: &str) {
+        let mut f = File::create(path).unwrap();
+        let _ = f.write(self.to_string().as_bytes());
+    }
     pub fn to_string(&self) -> String{
         self.stringify(0)
     }
-
     fn stringify(&self, indent: usize) -> String{
-        let mut out = String::new();
-        match &self.item {
-            None => {}
-            Some(item) => out += item
+        let item = &self.item;
+        let mut list = String::new();
+        for item in &self.list{
+            list = list + &format!("\n{}- ", "    ".repeat(indent)) + &item.stringify(indent + 1);
         }
-        match &self.collection {
-            MyhCollection::Empty => (),
-            MyhCollection::List(v) => {
-                for item in v{
-                    out = out + &format!("\n{}- ", "    ".repeat(indent)) + &item.stringify(indent + 1);
-                }
-            }
-            MyhCollection::Map(d, keys) => {
-                for key in keys {
-                    let v = d.get(key).unwrap();
-                    out = out + &format!("\n{}{}: ", "    ".repeat(indent), key) + &v.stringify(indent + 1);
-                }
-            }
+        let mut map = String::new();
+        for key in &self.map_order {
+            let v = self.map.get(key).unwrap();
+            map = map + &format!("\n{}{}: ", "    ".repeat(indent), key) + &v.stringify(indent + 1);
         }
-        out
-    }
-}
-
-pub struct MyhEmpty;
-
-impl MyhEmpty {
-    pub fn myh<T: Primitive>(self, item: Option<&T>) -> Myh {
-        Myh {
-            item: item.map(|i|i.stringify()),
-            collection: MyhCollection::Empty,
+        if let MyhOrder::ListFirst = self.order{
+            format!("{item}{list}{map}")
+        } else if let MyhOrder::MapFirst = self.order {
+            format!("{item}{map}{list}")
+        } else {
+            item.to_string()
         }
     }
 }
-
-pub struct MyhList(Vec<Myh>);
-
-impl MyhList {
-    pub fn push<T: Serializable>(&mut self, item: &T) {
-        self.0.push(item.serialize())
-    }
-    pub fn pop<T: Serializable>(&mut self) -> Option<T>{
-        T::deserialize(self.0.pop()?)
-    }
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-    pub fn get<T: Serializable>(&mut self, index: usize) -> Option<T> {
-        if self.0.len() <= index {
-            return None
-        }
-        T::deserialize(self.0.remove(index))
-    }
-    pub fn myh<T: Primitive>(self, item: Option<&T>) -> Myh {
-        Myh {
-            item: item.map(|i|i.stringify()),
-            collection: MyhCollection::List(self.0),
-        }
-    }
-}
-
-pub struct MyhMap(HashMap<String, Myh>, Vec<String>);
-
-impl MyhMap {
-    pub fn set<T: Serializable>(&mut self, key: &str, item: &T){
-        self.0.insert(key.to_string(), item.serialize());
-        self.1.push(key.to_string())
-    }
-    pub fn has_key(&self, key: &str) -> bool{
-        self.0.contains_key(key)
-    }
-    pub fn get<T: Serializable>(&mut self, key: &str) -> Option<T>{
-        self.1.retain(|k|k != key);
-        self.0.remove(key).map(|myh|T::deserialize(myh))?
-    }
-    pub fn keys(&self) -> Keys<String, Myh>{
-        self.0.keys()
-    }
-    pub fn myh<T: Primitive>(self, item: Option<&T>) -> Myh {
-        Myh {
-            item: item.map(|i|i.stringify()),
-            collection: MyhCollection::Map(self.0, self.1),
-        }
-    }
-}
-
 

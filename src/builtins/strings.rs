@@ -1,3 +1,4 @@
+use crate::error::MyhError;
 use crate::parsing::{escape_str, unescape_str};
 use crate::Primitive;
 
@@ -6,15 +7,15 @@ impl Primitive for char {
         format!("'{self}'")
     }
 
-    fn from_string(str: &str) -> Option<Self>{
+    fn from_string(str: &str) -> Result<Self, MyhError>{
         if &str[0..=0] != "'" || &str[str.len()-1..=str.len()-1] != "'" {
-            return None
+            return Err(MyhError::ParsePrimitiveError("char".to_string(), str.to_string()))
         }
-        let c = unescape_str(&str[1..=str.len()-2]).ok()?;
+        let c = unescape_str(&str[1..=str.len()-2])?;
         if c.len() == 1 {
-            c.chars().next()
+            Ok(c.chars().next().unwrap())
         } else {
-            None
+            Err(MyhError::ParsePrimitiveError("char".to_string(), str.to_string()))
         }
     }
 }
@@ -24,10 +25,10 @@ impl Primitive for String {
         format!("\"{}\"", escape_str(self))
     }
 
-    fn from_string(str: &str) -> Option<Self>{
+    fn from_string(str: &str) -> Result<Self, MyhError>{
         if &str[0..=0] != "\"" || &str[str.len()-1..=str.len()-1] != "\"" {
-            return None
+            return Err(MyhError::ParsePrimitiveError("string".to_string(), str.to_string()))
         }
-        unescape_str(&str[1..=str.len()-2]).ok()
+        unescape_str(&str[1..=str.len()-2])
     }
 }
