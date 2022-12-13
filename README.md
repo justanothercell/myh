@@ -1,4 +1,4 @@
-# MYH [mi:] serialization format
+# MYH [myː] serialization format
 The myh serialization format aims to be self-contained and easy to use.
 It throws as little errors as possible by design and sacrifices serde-comfort for
 fast compile times and giving the developer full control of how to handle malformed

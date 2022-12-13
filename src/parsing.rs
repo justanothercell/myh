@@ -1,4 +1,4 @@
-use crate::error::MyhError;
+use crate::error::{MyhErr, MyhError};
 
 pub fn split_tuple(str: &str) -> Vec<String>{
     let mut out = vec![];
@@ -38,7 +38,7 @@ pub fn assert_str(a: &str, b: &str, err: MyhError) -> Result<(), MyhError> {
 pub fn validate_key(key: &str) -> Result<(), MyhError> {
     for c in key.chars() {
         if !(c.is_ascii_alphanumeric() || c == '_') {
-            return Err(MyhError::InvalidKey(key.to_string()))
+            return Err(MyhErr::InvalidKey(key.to_string()).into())
         }
     }
     return Ok(())
@@ -80,15 +80,15 @@ pub fn unescape_str(str: &str) -> Result<String, MyhError>{
                             v.push(c1);
                             v.push(c2);
                             out.push(char::from_u32(u32::from_str_radix(&v, 0x10)
-                                .map_err(|_e|MyhError::StringError(format!("invalid ascii literal '\\u{{{v}}}'"), str.to_string()))?)
-                                .ok_or(MyhError::StringError(format!("invalid ascii literal '\\u{{{v}}}'"), str.to_string()))?)
+                                .map_err(|_e| MyhErr::StringError(format!("invalid ascii literal '\\u{{{v}}}'"), str.to_string()).into())?)
+                                .ok_or(MyhErr::StringError(format!("invalid ascii literal '\\u{{{v}}}'"), str.to_string()).into())?)
                         } else {
-                            return Err(MyhError::StringError("unterminated ascii literal".to_string(), str.to_string()))
+                            return Err(MyhErr::StringError("unterminated ascii literal".to_string(), str.to_string()).into())
                         }
                     }
                     'u' => {
                         if let Some('{') = chars.next() {} else {
-                            return Err(MyhError::StringError("expected '{{' in unicode literal".to_string(), str.to_string()))
+                            return Err(MyhErr::StringError("expected '{{' in unicode literal".to_string(), str.to_string()).into())
                         }
                         let mut ok = false;
                         let mut v = String::new();
@@ -100,13 +100,13 @@ pub fn unescape_str(str: &str) -> Result<String, MyhError>{
                             v.push(c);
                         }
                         if !ok {
-                            return Err(MyhError::StringError("unterminated unicode literal".to_string(), str.to_string()))
+                            return Err(MyhErr::StringError("unterminated unicode literal".to_string(), str.to_string()).into())
                         }
                         out.push(char::from_u32(u32::from_str_radix(&v, 0x10)
-                            .map_err(|_e|MyhError::StringError(format!("invalid unicode literal '\\u{{{v}}}'"), str.to_string()))?)
-                            .ok_or(MyhError::StringError(format!("invalid unicode literal '\\u{{{v}}}'"), str.to_string()))?)
+                            .map_err(|_e| MyhErr::StringError(format!("invalid unicode literal '\\u{{{v}}}'"), str.to_string()).into())?)
+                            .ok_or(MyhErr::StringError(format!("invalid unicode literal '\\u{{{v}}}'"), str.to_string()).into())?)
                     }
-                    _ => return Err(MyhError::StringError(format!("invalid escape sequence '\\{c}'"), str.to_string()))
+                    _ => return Err(MyhErr::StringError(format!("invalid escape sequence '\\{c}'"), str.to_string()).into())
                 }
             }
         } else {

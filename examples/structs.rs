@@ -22,7 +22,6 @@ impl Serializable for Test {
     }
 
     fn deserialize(myh: &Myh) -> Result<Self, MyhError> {
-        myh.no_title()?;
         Ok(Self{
             a_bool: myh.get("a_bool")?,
             b_i32: myh.get("b_i32")?,
@@ -121,6 +120,7 @@ fn main() {
     println!("{}", serialized.to_string());
     serialized.save("test_files/example.myh");
     */
-    let s: Test = Myh::load("test_files/example.myh").unwrap().deserialize().unwrap();
+    let myh = Myh::load("test_files/example.myh").unwrap();
+    let s: Test = myh.deserialize().unwrap();
     println!("{s:?}");
 }

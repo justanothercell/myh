@@ -1,4 +1,4 @@
-use crate::error::MyhError;
+use crate::error::{MyhErr, MyhError};
 use crate::parsing::assert_str;
 use crate::Primitive;
 
@@ -18,7 +18,8 @@ macro_rules! tuple_primitive_impls {
             fn from_string(str: &str) -> Result<Self, MyhError>{
                 let mut parts = crate::parsing::split_tuple(str);
                 parts.reverse();
-                Ok(($($name::from_string(&parts.pop().unwrap_or(String::new()))?,)+))
+                let mut index = 0;
+                Ok(($({index += 1; $name::from_string(&parts.pop().unwrap_or(String::new())).map_err(|e: MyhError|e.at(format!("({index})")))?},)+))
             }
         }
     };
@@ -30,7 +31,7 @@ impl Primitive for (){
     }
 
     fn from_string(str: &str) -> Result<Self, MyhError>{
-        assert_str(str, "", MyhError::ParsePrimitiveError("()".to_string(), str.to_string()))?;
+        assert_str(str, "", MyhErr::ParsePrimitiveError("()".to_string(), str.to_string()).into())?;
         Ok(())
     }
 }

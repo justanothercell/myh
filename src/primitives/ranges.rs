@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Formatter};
 use std::ops::{Bound, Range, RangeBounds, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
-use crate::error::MyhError;
+use crate::error::{MyhErr, MyhError};
 use crate::parsing::assert_str;
 use crate::Primitive;
 
@@ -10,7 +10,7 @@ impl<T: Primitive> Primitive for Range<T> {
     }
 
     fn from_string(string: &str) -> Result<Self, MyhError>{
-        let parts = string.split_once("..").ok_or(MyhError::ParsePrimitiveError("Range".to_string(), string.to_string()))?;
+        let parts = string.split_once("..").ok_or(MyhErr::ParsePrimitiveError("Range".to_string(), string.to_string()).into())?;
         Ok(T::from_string(parts.0)?..T::from_string(parts.1)?)
     }
 }
@@ -21,8 +21,8 @@ impl<T: Primitive> Primitive for RangeFrom<T> {
     }
 
     fn from_string(string: &str) -> Result<Self, MyhError>{
-        let parts = string.split_once("..").ok_or(MyhError::ParsePrimitiveError("RangeFrom".to_string(), string.to_string()))?;
-        assert_str(parts.1, "", MyhError::ParsePrimitiveError("RangeFrom".to_string(), string.to_string()))?;
+        let parts = string.split_once("..").ok_or(MyhErr::ParsePrimitiveError("RangeFrom".to_string(), string.to_string()).into())?;
+        assert_str(parts.1, "", MyhErr::ParsePrimitiveError("RangeFrom".to_string(), string.to_string()).into())?;
         Ok(T::from_string(parts.0)?..)
     }
 }
@@ -33,7 +33,7 @@ impl Primitive for RangeFull {
     }
 
     fn from_string(string: &str) -> Result<Self, MyhError>{
-        assert_str(string, "", MyhError::ParsePrimitiveError("RangeFull".to_string(), string.to_string()))?;
+        assert_str(string, "", MyhErr::ParsePrimitiveError("RangeFull".to_string(), string.to_string()).into())?;
         Ok(RangeFull)
     }
 }
@@ -44,7 +44,7 @@ impl<T: Primitive> Primitive for RangeInclusive<T> {
     }
 
     fn from_string(string: &str) -> Result<Self, MyhError>{
-        let parts = string.split_once("..=").ok_or(MyhError::ParsePrimitiveError("RangeInclusive".to_string(), string.to_string()))?;
+        let parts = string.split_once("..=").ok_or(MyhErr::ParsePrimitiveError("RangeInclusive".to_string(), string.to_string()).into())?;
         Ok(T::from_string(parts.0)?..=T::from_string(parts.1)?)
     }
 }
@@ -55,8 +55,8 @@ impl<T: Primitive> Primitive for RangeTo<T> {
     }
 
     fn from_string(string: &str) -> Result<Self, MyhError>{
-        let parts = string.split_once("..").ok_or(MyhError::ParsePrimitiveError("RangeTo".to_string(), string.to_string()))?;
-        assert_str(parts.0, "", MyhError::ParsePrimitiveError("RangeTo".to_string(), string.to_string()))?;
+        let parts = string.split_once("..").ok_or(MyhErr::ParsePrimitiveError("RangeTo".to_string(), string.to_string()).into())?;
+        assert_str(parts.0, "", MyhErr::ParsePrimitiveError("RangeTo".to_string(), string.to_string()).into())?;
         Ok(..T::from_string(parts.1)?)
     }
 }
@@ -67,8 +67,8 @@ impl<T: Primitive> Primitive for RangeToInclusive<T> {
     }
 
     fn from_string(string: &str) -> Result<Self, MyhError>{
-        let parts = string.split_once("..=").ok_or(MyhError::ParsePrimitiveError("RangeToInclusive".to_string(), string.to_string()))?;
-        assert_str(parts.0, "", MyhError::ParsePrimitiveError("RangeToInclusive".to_string(), string.to_string()))?;
+        let parts = string.split_once("..=").ok_or(MyhErr::ParsePrimitiveError("RangeToInclusive".to_string(), string.to_string()).into())?;
+        assert_str(parts.0, "", MyhErr::ParsePrimitiveError("RangeToInclusive".to_string(), string.to_string()).into())?;
         Ok(..=T::from_string(parts.1)?)
     }
 }
@@ -133,7 +133,7 @@ impl<T: Primitive> Primitive for AnyRange<T>{
             _ if let Ok(r) = RangeInclusive::<T>::from_string(string) => Ok(AnyRange::RangeInclusive(r)),
             _ if let Ok(r) = RangeTo::<T>::from_string(string) => Ok(AnyRange::RangeTo(r)),
             _ if let Ok(r) = RangeToInclusive::<T>::from_string(string) => Ok(AnyRange::RangeToInclusive(r)),
-            _ => Err(MyhError::ParsePrimitiveError("AnyRange".to_string(), string.to_string()))
+            _ => Err(MyhErr::ParsePrimitiveError("AnyRange".to_string(), string.to_string()).into())
         }
     }
 }

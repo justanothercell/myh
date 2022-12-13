@@ -1,5 +1,9 @@
+pub mod ranges;
+mod strings;
+mod tuples;
+
 use std::str::FromStr;
-use crate::error::MyhError;
+use crate::error::{MyhErr, MyhError};
 use crate::parsing::split_tuple;
 
 pub trait Primitive {
@@ -29,7 +33,7 @@ impl<T: Prim> Primitive for T {
     }
 
     fn from_string(str: &str) -> Result<Self, MyhError>{
-        str.parse().map_err(|_e| MyhError::ParsePrimitiveError(<T as Prim>::TY.to_string(), str.to_string()))
+        str.parse().map_err(|_e| MyhErr::ParsePrimitiveError(<T as Prim>::TY.to_string(), str.to_string()).into())
     }
 }
 
@@ -72,6 +76,6 @@ impl<T: Primitive> Primitive for PrimVec<T> {
     }
 
     fn from_string(str: &str) -> Result<Self, MyhError> {
-        split_tuple(str).into_iter().map(|s|T::from_string(&s)).collect::<Result<Vec<T>, MyhError>>().map(|v|v.into())
+        split_tuple(str).into_iter().enumerate().map(|(i, s)|T::from_string(&s).map_err(|e: MyhError|e.at(format!("({i})")))).collect::<Result<Vec<T>, MyhError>>().map(|v|v.into())
     }
 }

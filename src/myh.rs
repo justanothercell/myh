@@ -2,7 +2,7 @@ use std::collections::hash_map::Keys;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Write};
-use crate::error::MyhError;
+use crate::error::{MyhErr, MyhError};
 use crate::parsing::{key_index, validate_key};
 use crate::Primitive;
 
@@ -104,7 +104,7 @@ impl Myh {
     pub fn get_item<T: Primitive>(&self) -> Result<T, MyhError>{
         T::from_string(&self.item)
     }
-    pub fn no_title(&self) -> Result<(), MyhError> {
+    pub fn no_item(&self) -> Result<(), MyhError> {
         let _: () = self.get_item()?;
         Ok(())
     }
@@ -115,7 +115,7 @@ impl Myh {
     // == list ==
     pub fn push<T: Serializable>(&mut self, item: &T) -> Result<(), MyhError> {
         self.order.update(MyhOrder::ListFirst);
-        self.list.push(item.serialize()?);
+        self.list.push(item.serialize().map_err(|e: MyhError|e.at((self.list.len()-1).to_string()))?);
         Ok(())
     }
     pub fn len(&self) -> usize {
@@ -123,16 +123,16 @@ impl Myh {
     }
     pub fn at<T: Serializable>(&self, index: usize) -> Result<T, MyhError> {
         if self.list.len() <= index {
-            return Err(MyhError::IndexOutOfBounds(index, self.list.len()))
+            return Err(MyhErr::IndexOutOfBounds(index, self.list.len()).into()).map_err(|e: MyhError|e.at(format!("[{index}]")))
         }
-        T::deserialize(self.list.get(index).unwrap())
+        T::deserialize(self.list.get(index).unwrap()).map_err(|e: MyhError|e.at(format!("[{index}]")))
     }
 
     // == map ==
     pub fn set<T: Serializable>(&mut self, key: &str, item: &T) -> Result<(), MyhError>{
-        validate_key(key)?;
+        validate_key(key).map_err(|e: MyhError|e.at(key.to_string()))?;
         self.order.update(MyhOrder::MapFirst);
-        self.map.insert(key.to_string(), item.serialize()?);
+        self.map.insert(key.to_string(), item.serialize().map_err(|e: MyhError|e.at(key.to_string()))?);
         self.map_order.push(key.to_string());
         Ok(())
     }
@@ -140,7 +140,8 @@ impl Myh {
         self.map.contains_key(key)
     }
     pub fn get<T: Serializable>(&self, key: &str) -> Result<T, MyhError>{
-        self.map.get(key).map(|myh|T::deserialize(myh)).ok_or(MyhError::KeyNotFound(key.to_string()))?
+        self.map.get(key).map(|myh|T::deserialize(myh)).ok_or(MyhErr::KeyNotFound(key.to_string()).into())
+            .map_err(|e: MyhError|e.at(key.to_string()))?.map_err(|e: MyhError|e.at(key.to_string()))
     }
     pub fn keys(&self) -> Keys<String, Myh>{
         self.map.keys()
@@ -174,11 +175,12 @@ impl Myh {
             sub
         }
         let mut myh = Self::new();
+        let mut first = true;
         while strings.len() > 0 {
             let s = strings.remove(0);
             if s.trim().is_empty() { continue }
-            if s.starts_with("- ") {
-                let mut item = vec![s.split_at(2).1.trim_start()];
+            if s.starts_with("- ") || s == "-" {
+                let mut item = vec![s.split_at(1).1.trim_start()];
                 item.extend(collect_item(&mut strings));
                 myh.list.push(Self::from_strings(item)?);
                 myh.order.update(MyhOrder::ListFirst);
@@ -191,9 +193,10 @@ impl Myh {
                 myh.map.insert(k.to_string(), Myh::from_strings(item)?);
                 myh.map_order.push(k.to_string());
                 myh.order.update(MyhOrder::MapFirst);
-            } else if myh.order == MyhOrder::None && !myh.has_item() {
+            } else if first {
                 myh.item = s.to_string();
-            } else { return Err(MyhError::DeserializationError("invalid input".to_string(), s.to_string())) }
+            } else { return Err(MyhErr::DeserializationError(s.to_string()).into()) }
+            first = false;
         }
         Ok(myh)
     }
