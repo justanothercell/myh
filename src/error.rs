@@ -19,7 +19,11 @@ pub enum MyhErr {
     /// error, input
     StringError(String, String),
     /// input
-    DeserializationError(String)
+    DeserializationError(String),
+    /// what, found, line
+    Invalid(String, String, usize),
+    ///error, file
+    FileError(String, String)
 }
 
 impl Into<MyhError> for MyhErr {
@@ -54,6 +58,8 @@ impl Display for MyhError {
             MyhErr::IndexOutOfBounds(index, len) => format!("index {index} was out of bounds for list of length {len}"),
             MyhErr::StringError(err, input) => format!("{err} in string or char '{input}'"),
             MyhErr::DeserializationError(input) => format!("could not deserialize '{input}'"),
+            MyhErr::Invalid(what, thing, line) => format!("invalid {what} in line {line}: '{thing}'"),
+            MyhErr::FileError(err, file) => format!("could not {err} file: '{file}'"),
         }, if self.path.len() > 0 { format!("\nat: '{}'", self.path.clone().into_iter().rev().collect::<Vec<_>>().join("::")) } else { String::new() })
     }
 }

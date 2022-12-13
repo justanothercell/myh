@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Write};
 use crate::error::{MyhErr, MyhError};
-use crate::parsing::{key_index, validate_key};
+use crate::parsing::{key_index, uncomment, validate_key};
 use crate::Primitive;
 
 pub trait Serializable {
@@ -153,12 +153,13 @@ impl Myh {
     }
 
     pub fn load(path: &str) -> Result<Self, MyhError> {
-        let mut f = File::open(path).unwrap();
+        let mut f = File::open(path).map_err(|_|MyhErr::FileError("find".to_string(), path.to_string()).into())?;
         let mut buf = String::new();
-        f.read_to_string(&mut buf).unwrap();
+        f.read_to_string(&mut buf).map_err(|_|MyhErr::FileError("read".to_string(), path.to_string()).into())?;
         Self::from_string(&buf)
     }
-    pub fn from_string(string: &str) -> Result<Self, MyhError>{
+    pub fn from_string(str: &str) -> Result<Self, MyhError>{
+        let string = uncomment(str)?;
         let strings = string.split('\n').collect::<Vec<_>>();
         let strings = strings.into_iter().map(|s|s.trim_end()).collect();
         Self::from_strings(strings)
@@ -167,6 +168,7 @@ impl Myh {
         fn collect_item<'a>(strings: &mut Vec<&'a str>) -> Vec<&'a str>{
             let mut sub = vec![];
             while let Some(s) = strings.get(0) {
+                if s.trim().is_empty() { strings.remove(0); continue }
                 if s.starts_with("    ") {
                     sub.push(s.split_at(4).1);
                     let _ = strings.remove(0);
@@ -201,9 +203,10 @@ impl Myh {
         Ok(myh)
     }
 
-    pub fn save(&self, path: &str) {
-        let mut f = File::create(path).unwrap();
-        let _ = f.write(self.to_string().as_bytes());
+    pub fn save(&self, path: &str) -> Result<(), MyhError>{
+        let mut f = File::create(path).map_err(|_|MyhErr::FileError("create or open".to_string(), path.to_string()).into())?;
+        f.write(self.to_string().as_bytes()).map_err(|_|MyhErr::FileError("write to".to_string(), path.to_string()).into())?;
+        Ok(())
     }
     pub fn to_string(&self) -> String{
         self.stringify(0)

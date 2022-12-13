@@ -2,7 +2,7 @@
 a_bool: true
 b_i32: 42
 c_sub: "Data \"1"
-    sub_string:      "ABCDEF"
+    sub_string: "ABCDEF"
     sub_tuple: 75, 'c'
     inline_vec: 'x', 'y', 'z'
     outline_vec: 

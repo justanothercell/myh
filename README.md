@@ -43,3 +43,62 @@ A primitive is a "single value", aka i32, u8, Range, char, String, etc, or a tup
 
 Derive your type from `Primitive` if it only consists of a single value (ranges, ints, chars, etc...).
 For structs and other composed types derive `Myh`.
+
+### [comparison with toml](./test_files/serde_cargo.toml.myh)
+(snippets from [serde toml](https://github.com/serde-rs/serde/blob/master/serde/Cargo.toml))
+##### TOML
+```toml
+[package]
+name = "serde"
+version = "1.0.150" # remember to update html_root_url and serde_derive dependency
+authors = ["Erick Tryzelaar <erick.tryzelaar@gmail.com>", "David Tolnay <dtolnay@gmail.com>"]
+build = "build.rs"
+categories = ["encoding", "no-std"]
+/.../ # left out items for visibility
+
+[dependencies]
+serde_derive = { version = "=1.0.150", optional = true, path = "../serde_derive" }
+
+[dev-dependencies]
+serde_derive = { version = "1.0", path = "../serde_derive" }
+
+[package.metadata.playground]
+features = ["derive", "rc"]
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+```
+##### MYH
+```py
+package: "serde"
+    version: "1.0.150" // remember to update html_root_url and serde_derive dependency
+    authors:
+        - "Erick Tryzelaar <erick.tryzelaar@gmail.com>"
+        - "David Tolnay <dtolnay@gmail.com>"
+    build: "build.rs"
+    categories: "encoding", "no-std"
+    /.../ // left out items for visibility
+    metadata:
+        playground:
+            features: "derive", "rc"
+        docs:
+            rs:
+                targets: "x86_64-unknown-linux-gnu"
+
+dependencies:
+    serde_derive: "=1.0.150"
+        optional: true
+        path: "../serde_derive"
+
+dev_dependencies:
+    serde_derive: "1.0"
+        path: "../serde_derive"
+```
+##### MYH [_compacting keys with only one item_]
+```py
+package: "serde"
+    /.../ // left out items for visibility
+    metadata:
+        playground: features: "derive", "rc"
+        docs: rs: targets: "x86_64-unknown-linux-gnu"
+```

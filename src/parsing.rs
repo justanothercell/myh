@@ -29,6 +29,55 @@ pub fn split_tuple(str: &str) -> Vec<String>{
     out
 }
 
+pub fn uncomment(str: &str) -> Result<String, MyhError>{
+    let mut s = String::new();
+    let mut in_str = false;
+    let mut in_char = false;
+    let mut escaped = false;
+    let mut chars = str.chars();
+    while let Some(c) = chars.next() {
+        let was_escaped = escaped;
+        match c {
+            '/' if !(in_str || in_char) => {
+                match chars.next() {
+                    Some('/') => while let Some(c) = chars.next() {
+                        if c == '\n' {
+                            s.push('\n');
+                            break
+                        }
+                    }
+                    Some('*') => while let Some(c) = chars.next() {
+                        if c == '\n' {
+                            s.push('\n');
+                            break
+                        }
+                        if c == '*' {
+                            if let Some('/') = chars.next() {
+                                break
+                            }
+                        }
+                        return Err(MyhErr::Invalid("block comment end".to_string(), "EOF".to_string(), s.matches('\n').count() + 1).into())
+                    },
+                    Some(c) => s.push(c),
+                    None => ()
+                }
+            },
+            '\n' if in_str => return Err(MyhErr::Invalid("newline in string".to_string(), "\\n".to_string(), s.matches('\n').count() + 1).into()),
+            '\n' if in_char => return Err(MyhErr::Invalid("newline in char".to_string(), "\\n".to_string(), s.matches('\n').count() + 1).into()),
+            '\\' if !escaped && (in_str || in_char) => { escaped = true; s.push('\\') },
+            '"' if !(in_str || in_char) => { in_str = true; s.push('"') },
+            '"' if !escaped && in_str => { in_str = false; s.push('"') },
+            '\'' if !(in_str || in_char) => { in_char = true; s.push('\'') },
+            '\'' if !escaped && in_char => { in_char = false; s.push('\'') },
+            _ => s.push(c)
+        }
+        if was_escaped {
+            escaped = false;
+        }
+    }
+    Ok(s)
+}
+
 pub fn assert_str(a: &str, b: &str, err: MyhError) -> Result<(), MyhError> {
     if a != b {
         Err(err)
