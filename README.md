@@ -8,6 +8,8 @@ This library uses `nightly` because that's where all the fun features are anyway
 
 ✨ IT IS NON PROC MACRO RELIANT ✨
 
+(we pretend that this is not similar to yaml)
+
 ## Example
 ```py
 a_bool: true
